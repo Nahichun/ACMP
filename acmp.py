@@ -112,6 +112,39 @@ class ACMPSolverBrowser:
             print(f"Ошибка запроса к GigaChat: {e}")
             return f"Ошибка: {str(e)}"
 
+    def wait_for_authorization(self):
+        """Ожидание завершения авторизации пользователем"""
+        print("⏳ Ожидаем авторизации...")
+
+        max_wait_time = 300  # 5 минут максимальное время ожидания
+        start_time = time.time()
+
+        while time.time() - start_time < max_wait_time:
+            try:
+                # Проверяем наличие элементов, указывающих на авторизацию
+                user_elements = self.driver.find_elements(By.XPATH,
+                                                          "//*[contains(text(), 'Выход') or contains(text(), 'Logout') or contains(text(), 'Захаров И.Н.')]")
+
+                if user_elements:
+                    print("✅ Авторизация обнаружена!")
+                    return True
+
+                # Также проверяем наличие кнопки входа
+                login_elements = self.driver.find_elements(By.XPATH,
+                                                           "//*[contains(text(), 'Вход') or contains(text(), 'Login')]")
+                if login_elements:
+                    print("⚠️  Необходима авторизация! Пожалуйста, войдите в систему.")
+
+                print(f"⏰ Ожидание... ({int(time.time() - start_time)} сек.)")
+                time.sleep(5)
+
+            except Exception as e:
+                print(f"Ошибка при проверке авторизации: {e}")
+                time.sleep(5)
+
+        print("❌ Превышено время ожидания авторизации")
+        return False
+
     def extract_task_links(self):
         """Извлечение ссылок на задачи через браузер"""
         print("Ищем задачи на странице...")
@@ -151,20 +184,34 @@ class ACMPSolverBrowser:
         except:
             title = "Неизвестная задача"
 
-        # Получаем описание
+        # Получаем описание из meta тега
         description = ""
+        try:
+            meta_desc = self.driver.find_element(By.XPATH, "//meta[@name='description']")
+            description = meta_desc.get_attribute("content")
+            print(f"Описание из meta: {description[:100]}...")
+        except:
+            print("Не удалось получить описание из meta")
+
+        # Дополнительно получаем текст задачи со страницы
+        full_text = ""
         try:
             content_div = self.driver.find_element(By.XPATH, "//td[contains(@background, 'notepad2.gif')]")
             paragraphs = content_div.find_elements(By.TAG_NAME, "p")
             for p in paragraphs:
                 if p.text.strip():
-                    description += p.text.strip() + "\n"
+                    full_text += p.text.strip() + "\n"
         except:
             pass
 
+        # Объединяем оба источника
+        complete_description = description + "\n" + full_text
+
         return {
             'title': title,
-            'description': description[:500] + "..." if len(description) > 500 else description,
+            'description': complete_description[:800] + "..." if len(
+                complete_description) > 800 else complete_description,
+            'full_description': complete_description
         }
 
     def set_code_in_codemirror(self, code):
@@ -243,16 +290,12 @@ class ACMPSolverBrowser:
                 pass
 
             print("✅ Решение готово к отправке!")
-            print("⚠️  Для реальной отправки раскомментируйте код в методе submit_solution()")
 
-            # Демонстрационная пауза
+            # РЕАЛЬНАЯ ОТПРАВКА
+            submit_btn = self.driver.find_element(By.XPATH, "//input[@type='submit' or @value='Отправить']")
+            submit_btn.click()
+            print("🚀 Решение отправлено!")
             time.sleep(3)
-
-            # ЗАКОММЕНТИРОВАНО ДЛЯ БЕЗОПАСНОСТИ - раскомментируйте для реальной отправки:
-            # submit_btn = self.driver.find_element(By.XPATH, "//input[@type='submit' or @value='Отправить']")
-            # submit_btn.click()
-            # print("🚀 Решение отправлено!")
-            # time.sleep(3)
 
             return True
 
@@ -260,60 +303,136 @@ class ACMPSolverBrowser:
             print(f"❌ Ошибка при подготовке отправки: {e}")
             return False
 
-    def solve_task(self, task_url):
-        """Решение одной задачи"""
+    def check_solution_status(self, max_attempts=15, wait_time=5):
+        """Проверка статуса решения на странице статуса"""
+        print("🔍 Проверяем результат решения...")
+
+        for attempt in range(max_attempts):
+            print(f"Попытка {attempt + 1}/{max_attempts}...")
+            time.sleep(wait_time)
+
+            # Обновляем страницу статуса
+            self.driver.get("https://acmp.ru/index.asp?main=status")
+            time.sleep(2)
+
+            try:
+                # Ищем таблицу с результатами
+                status_table = self.driver.find_element(By.CLASS_NAME, "refresh")
+                rows = status_table.find_elements(By.TAG_NAME, "tr")
+
+                # Ищем строку с нашим пользователем
+                for i, row in enumerate(rows):
+                    if i == 0:  # Пропускаем заголовок
+                        continue
+
+                    cells = row.find_elements(By.TAG_NAME, "td")
+                    if len(cells) >= 6:
+                        author_cell = cells[2]  # Столбец с автором
+
+                        # Проверяем, содержит ли ячейка наше имя
+                        if "Захаров Илья Николаевич" in author_cell.text:
+                            result_cell = cells[5]  # Столбец с результатом
+                            result_text = result_cell.text.strip()
+
+                            print(f"Найдена наша попытка: {result_text}")
+
+                            if "Accepted" in result_text:
+                                print("🎉 Решение принято!")
+                                return True, "Accepted"
+                            elif "Compiling" in result_text or "Testing" in result_text:
+                                print("⏳ Решение проверяется...")
+                                continue  # Продолжаем ждать
+                            else:
+                                print(f"❌ Решение не принято: {result_text}")
+                                return False, result_text
+
+                print("Наша попытка еще не появилась в таблице...")
+
+            except Exception as e:
+                print(f"Ошибка при проверке статуса: {e}")
+                continue
+
+        print("⚠️ Превышено время ожидания результата")
+        return False, "Timeout"
+
+    def solve_task_with_retry(self, task_url, max_attempts=3):
+        """Решение одной задачи с повторными попытками при неудаче"""
         print(f"\n🚀 Переходим к задаче: {task_url}")
 
-        # Переходим на страницу задачи
-        self.driver.get(task_url)
-        time.sleep(3)  # Ждем загрузки
+        for attempt in range(1, max_attempts + 1):
+            print(f"\n📝 Попытка {attempt}/{max_attempts}")
 
-        # Прокручиваем к форме решения
-        try:
-            solution_section = self.driver.find_element(By.XPATH, "//a[@name='solution']")
-            self.driver.execute_script("arguments[0].scrollIntoView();", solution_section)
-            time.sleep(1)
-        except:
-            print("⚠️  Не удалось найти раздел решения")
+            # Переходим на страницу задачи
+            self.driver.get(task_url)
+            time.sleep(3)
 
-        # Парсим информацию о задаче
-        task_info = self.parse_task_page()
+            # Прокручиваем к форме решения
+            try:
+                solution_section = self.driver.find_element(By.XPATH, "//a[@name='solution']")
+                self.driver.execute_script("arguments[0].scrollIntoView();", solution_section)
+                time.sleep(1)
+            except:
+                print("⚠️  Не удалось найти раздел решения")
 
-        # Формируем промпт для нейросети
-        prompt = f"""Реши задачу на Python. Ввод и вывод осуществляй с консоли.
+            # Парсим информацию о задаче
+            task_info = self.parse_task_page()
+
+            # Формируем промпт для нейросети с полным текстом задачи
+            prompt = f"""Реши задачу на Python. Ввод и вывод осуществляй с консоли.
 
 Задача: {task_info['title']}
 
-Описание:
-{task_info['description']}
+Полное описание:
+{task_info['full_description']}
 
 Напиши код на Python, который читает входные данные из стандартного ввода и выводит результат в стандартный вывод.
-Код должен быть простым и эффективным."""
+Код должен быть простым и эффективным. Убедись, что решение корректно обрабатывает все граничные случаи."""
 
-        print("🤖 Запрашиваем решение у нейросети...")
-        solution = self.ask_gigachat(prompt)
+            print("🤖 Запрашиваем решение у нейросети...")
+            solution = self.ask_gigachat(prompt)
 
-        # Извлекаем код
-        code_match = re.search(r'```python\s*(.*?)\s*```', solution, re.DOTALL)
-        if code_match:
-            python_code = code_match.group(1).strip()
-        else:
-            python_code = solution.strip()
+            # Извлекаем код
+            code_match = re.search(r'```python\s*(.*?)\s*```', solution, re.DOTALL)
+            if code_match:
+                python_code = code_match.group(1).strip()
+            else:
+                python_code = solution.strip()
 
-        print("💡 Получено решение:")
-        print("=" * 50)
-        print(python_code)
-        print("=" * 50)
+            print("💡 Получено решение:")
+            print("=" * 50)
+            print(python_code)
+            print("=" * 50)
 
-        # Отправляем решение
-        success = self.submit_solution(python_code)
+            # Отправляем решение
+            success = self.submit_solution(python_code)
 
-        if success:
-            print("✅ Решение подготовлено!")
-        else:
-            print("❌ Ошибка подготовки решения.")
+            if success:
+                print("✅ Решение отправлено! Проверяем результат...")
+                # Проверяем статус решения
+                is_accepted, result = self.check_solution_status()
 
-        return success
+                if is_accepted:
+                    print("🎉 Задача решена успешно!")
+                    return True
+                else:
+                    print(f"❌ Попытка {attempt} не удалась: {result}")
+
+                    if attempt < max_attempts:
+                        print("🔄 Пробуем решить задачу заново...")
+                        # Небольшая пауза перед следующей попыткой
+                        time.sleep(3)
+                    else:
+                        print(f"❌ Все {max_attempts} попытки исчерпаны для этой задачи")
+                        return False
+            else:
+                print("❌ Ошибка отправки решения.")
+                if attempt < max_attempts:
+                    print("🔄 Пробуем еще раз...")
+                    time.sleep(3)
+                else:
+                    return False
+
+        return False
 
     def run(self):
         """Основной цикл работы"""
@@ -324,18 +443,10 @@ class ACMPSolverBrowser:
         self.driver.get("https://acmp.ru/index.asp?main=tasks")
         time.sleep(3)
 
-        # Проверяем авторизацию
-        try:
-            user_elements = self.driver.find_elements(By.XPATH,
-                                                      "//*[contains(text(), 'Выход') or contains(text(), 'Logout')]")
-            if user_elements:
-                print("✅ Авторизация обнаружена")
-            else:
-                print("⚠️  Необходима авторизация!")
-                print("Пожалуйста, авторизуйтесь в браузере и нажмите Enter чтобы продолжить...")
-                input()
-        except:
-            print("⚠️  Не удалось проверить авторизацию")
+        # Ждем завершения авторизации
+        if not self.wait_for_authorization():
+            print("❌ Не удалось дождаться авторизации. Программа завершена.")
+            return
 
         # Извлекаем ссылки на задачи
         print("\n🔍 Ищем задачи...")
@@ -347,23 +458,36 @@ class ACMPSolverBrowser:
             print("❌ Задачи не найдены. Проверьте структуру страницы.")
             return
 
-        # Обрабатываем первые 2 задачи для демонстрации
-        for i, task_link in enumerate(task_links[:2], 1):
+        # Обрабатываем задачи
+        max_tasks = 5  # Можно увеличить это число
+        successful_tasks = 0
+        attempted_tasks = 0
+
+        for i, task_link in enumerate(task_links[:max_tasks], 1):
             print(f"\n{'=' * 60}")
-            print(f"🎯 ЗАДАЧА {i}/2 - {task_link}")
+            print(f"🎯 ЗАДАЧА {i}/{max_tasks} - {task_link}")
             print(f"{'=' * 60}")
 
-            self.solve_task(task_link)
+            attempted_tasks += 1
 
-            # Возвращаемся к списку задач
-            if i < len(task_links[:2]):
+            # Решаем задачу с повторными попытками
+            if self.solve_task_with_retry(task_link):
+                successful_tasks += 1
+            else:
+                print(f"⚠️ Пропускаем задачу после неудачных попыток")
+
+            # Возвращаемся к списку задач (если это не последняя задача)
+            if i < min(len(task_links), max_tasks):
                 print("\n↩️  Возвращаемся к списку задач...")
                 self.driver.get("https://acmp.ru/index.asp?main=tasks")
                 time.sleep(3)
 
         print(f"\n{'=' * 60}")
-        print("🎉 ДЕМОНСТРАЦИЯ ЗАВЕРШЕНА!")
-        print("📋 Просмотрите результаты в браузере")
+        print(f"🎉 РАБОТА ЗАВЕРШЕНА!")
+        print(f"📊 Статистика:")
+        print(f"   Всего задач: {attempted_tasks}")
+        print(f"   Успешно решено: {successful_tasks}")
+        print(f"   Процент успеха: {successful_tasks / attempted_tasks * 100:.1f}%")
         print("⏸️  Браузер останется открытым для просмотра")
         input("Нажмите Enter чтобы закрыть...")
 
@@ -430,7 +554,7 @@ if __name__ == "__main__":
             solver.driver.get("https://acmp.ru/index.asp?main=tasks")
             task_links = solver.extract_task_links()
             print(f"Найдено {len(task_links)} задач:")
-            for link in task_links[:5]:
+            for link in task_links[:10]:
                 print(f"  - {link}")
             input("Нажмите Enter чтобы закрыть...")
         finally:
