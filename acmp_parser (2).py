@@ -7,15 +7,10 @@ from openai import OpenAI
 import time
 import re
 import warnings
-<<<<<<< HEAD
 import json
 import os
 from datetime import datetime
 
-=======
-
-# Отключаем предупреждения SSL
->>>>>>> 2e5d7d31b57a90bcd1afa1b4b497613429e909bc
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 
@@ -24,7 +19,6 @@ class ACMPSolverBrowser:
         self.openrouter_api_key = openrouter_api_key
         self.site_url = site_url
         self.site_name = site_name
-<<<<<<< HEAD
         self.solutions_file = "solutions_history.json"
         self.best_solutions_file = "best_solutions.json"
         
@@ -32,10 +26,6 @@ class ACMPSolverBrowser:
         self.solutions_history = self.load_solutions_history()
         self.best_solutions = self.load_best_solutions()
         
-=======
-
-        # Инициализация OpenAI-совместимого клиента для OpenRouter
->>>>>>> 2e5d7d31b57a90bcd1afa1b4b497613429e909bc
         if openrouter_api_key:
             self.client = OpenAI(
                 base_url="https://openrouter.ai/api/v1",
@@ -44,10 +34,6 @@ class ACMPSolverBrowser:
         else:
             self.client = None
 
-<<<<<<< HEAD
-=======
-        # Настройка браузера
->>>>>>> 2e5d7d31b57a90bcd1afa1b4b497613429e909bc
         chrome_options = Options()
         chrome_options.add_argument("--start-maximized")
         chrome_options.add_argument("--disable-infobars")
@@ -60,7 +46,6 @@ class ACMPSolverBrowser:
         self.driver = webdriver.Chrome(options=chrome_options)
         self.wait = WebDriverWait(self.driver, 20)
 
-<<<<<<< HEAD
     def load_solutions_history(self):
         """Загружаем историю решений из JSON файла"""
         if os.path.exists(self.solutions_file):
@@ -171,11 +156,6 @@ class ACMPSolverBrowser:
             # Добавляем в основной промт
             full_prompt = f"{prompt}\n\n{previous_solutions_prompt}"
             
-=======
-    def ask_ai(self, prompt):
-        """Запрос к нейросети через OpenRouter"""
-        if not self.client or not self.openrouter_api_key:
->>>>>>> 2e5d7d31b57a90bcd1afa1b4b497613429e909bc
             demo_solutions = {
                 "1": "a, b = map(int, input().split())\nprint(a + b)",
                 "2": "n = int(input())\nprint(n)",
@@ -186,7 +166,6 @@ class ACMPSolverBrowser:
                 "1000": "print('Hello, World!')"
             }
 
-<<<<<<< HEAD
             for task_id_key, solution in demo_solutions.items():
                 if f"id_task={task_id_key}" in prompt or f"Задача {task_id_key}" in prompt:
                     return f"```python\n{solution}\n```"
@@ -214,15 +193,6 @@ else:
 
 ПРОАНАЛИЗИРУЙ ПРЕДЫДУЩИЕ ПОПЫТКИ И ПРЕДЛОЖИ УЛУЧШЕННОЕ РЕШЕНИЕ."""
             
-=======
-            for task_id, solution in demo_solutions.items():
-                if f"id_task={task_id}" in prompt or f"Задача {task_id}" in prompt:
-                    return f"```python\n{solution}\n```"
-
-            return "```python\n# Универсальное решение\nimport sys\ndata = sys.stdin.read().strip()\nif data:\n    print(data)\nelse:\n    print('0')\n```"
-
-        try:
->>>>>>> 2e5d7d31b57a90bcd1afa1b4b497613429e909bc
             completion = self.client.chat.completions.create(
                 extra_headers={
                     "HTTP-Referer": self.site_url,
@@ -232,7 +202,6 @@ else:
                 messages=[
                     {
                         "role": "system",
-<<<<<<< HEAD
                         "content": """Ты - эксперт по программированию и решению олимпиадных задач. 
                         Ты видишь предыдущие попытки решения этой и других задач. 
                         Анализируй ошибки предыдущих решений и предлагай улучшенный код.
@@ -242,61 +211,31 @@ else:
                     {
                         "role": "user",
                         "content": full_prompt
-=======
-                        "content": "Ты - эксперт по программированию и решению олимпиадных задач. Пиши чистый, эффективный код на Python. Код должен читать из input() и выводить через print()."
-                    },
-                    {
-                        "role": "user",
-                        "content": prompt
->>>>>>> 2e5d7d31b57a90bcd1afa1b4b497613429e909bc
                     }
                 ],
             )
             return completion.choices[0].message.content
         except Exception as e:
-<<<<<<< HEAD
             print(f"Ошибка API: {e}")
             return f"```python\n# Ошибка API, базовое решение\nprint(input())\n```"
 
     def wait_for_authorization(self):
-=======
-            return f"```python\n# Ошибка API, базовое решение\nprint(input())\n```"
-
-    def wait_for_authorization(self):
-        """Ожидание завершения авторизации пользователем"""
->>>>>>> 2e5d7d31b57a90bcd1afa1b4b497613429e909bc
         print("Ожидаем авторизации...")
         max_wait_time = 300
         start_time = time.time()
 
         while time.time() - start_time < max_wait_time:
             try:
-<<<<<<< HEAD
                 user_elements = self.driver.find_elements(By.XPATH,
                                                           "//*[contains(text(), 'Выход') or contains(text(), 'Logout') or contains(@href, 'logout')]")
 
-=======
-                # Проверяем различные элементы, указывающие на авторизацию
-                user_elements = self.driver.find_elements(By.XPATH,
-                                                          "//*[contains(text(), 'Выход') or contains(text(), 'Logout') or contains(@href, 'logout')]")
-
-                # Также проверяем наличие меню пользователя
->>>>>>> 2e5d7d31b57a90bcd1afa1b4b497613429e909bc
                 user_menu = self.driver.find_elements(By.XPATH, "//a[contains(@href, 'main=user')]")
 
                 if user_elements or user_menu:
                     print("Авторизация обнаружена!")
-<<<<<<< HEAD
                     time.sleep(3)
                     return True
 
-=======
-                    # Даем время для полной загрузки страницы после авторизации
-                    time.sleep(3)
-                    return True
-
-                # Проверяем, не появилась ли страница с ошибкой
->>>>>>> 2e5d7d31b57a90bcd1afa1b4b497613429e909bc
                 if "error" in self.driver.current_url.lower() or "ошибка" in self.driver.page_source.lower():
                     print("Обнаружена ошибка страницы, перезагружаем...")
                     self.driver.get("https://acmp.ru/index.asp?main=tasks")
@@ -310,14 +249,8 @@ else:
         return False
 
     def get_all_task_urls(self):
-<<<<<<< HEAD
         task_urls = []
         for task_id in range(555, 1001):
-=======
-        """Получение ссылок на все задачи с 1 по 1000"""
-        task_urls = []
-        for task_id in range(418, 1001):
->>>>>>> 2e5d7d31b57a90bcd1afa1b4b497613429e909bc
             task_url = f"https://acmp.ru/index.asp?main=task&id_task={task_id}"
             task_urls.append(task_url)
         return task_urls
@@ -410,10 +343,6 @@ else:
         }
 
     def set_code_in_codemirror(self, code):
-<<<<<<< HEAD
-=======
-        """Ввод кода в CodeMirror редактор"""
->>>>>>> 2e5d7d31b57a90bcd1afa1b4b497613429e909bc
         try:
             escaped_code = code.replace('`', '\\`').replace('${', '\\${')
             js_script = f"""
@@ -431,10 +360,6 @@ else:
             return False
 
     def select_language(self, lang="PY"):
-<<<<<<< HEAD
-=======
-        """Выбор языка программирования"""
->>>>>>> 2e5d7d31b57a90bcd1afa1b4b497613429e909bc
         try:
             lang_select = self.driver.find_element(By.NAME, "lang")
             js_script = f"""
@@ -451,13 +376,7 @@ else:
             return False
 
     def submit_solution(self, solution_code):
-<<<<<<< HEAD
         try:
-=======
-        """Отправка решения через браузер"""
-        try:
-            # Ждем загрузки формы
->>>>>>> 2e5d7d31b57a90bcd1afa1b4b497613429e909bc
             form = self.wait.until(EC.presence_of_element_located((By.TAG_NAME, "form")))
             self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", form)
             time.sleep(1)
@@ -468,18 +387,10 @@ else:
             if not self.select_language("PY"):
                 return False
 
-<<<<<<< HEAD
-=======
-            # Ждем доступности кнопки отправки
->>>>>>> 2e5d7d31b57a90bcd1afa1b4b497613429e909bc
             submit_btn = self.wait.until(
                 EC.element_to_be_clickable((By.XPATH, "//input[@type='submit' or @value='Отправить']")))
             submit_btn.click()
 
-<<<<<<< HEAD
-=======
-            # Ждем обработки отправки
->>>>>>> 2e5d7d31b57a90bcd1afa1b4b497613429e909bc
             time.sleep(2)
             return True
         except Exception as e:
@@ -487,10 +398,6 @@ else:
             return False
 
     def check_solution_status(self, max_attempts=10):
-<<<<<<< HEAD
-=======
-        """Проверка статуса решения"""
->>>>>>> 2e5d7d31b57a90bcd1afa1b4b497613429e909bc
         for attempt in range(max_attempts):
             time.sleep(5)
             try:
@@ -523,12 +430,7 @@ else:
 
         return False, "Timeout"
 
-<<<<<<< HEAD
     def solve_task_with_retry(self, task_url, task_id, max_attempts=3):
-=======
-    def solve_task_with_retry(self, task_url, task_id, max_attempts=2):
-        """Решение одной задачи с повторными попытками"""
->>>>>>> 2e5d7d31b57a90bcd1afa1b4b497613429e909bc
         for attempt in range(1, max_attempts + 1):
             print(f"Попытка {attempt} для задачи {task_id}")
 
@@ -536,21 +438,13 @@ else:
                 self.driver.get(task_url)
                 time.sleep(2)
 
-<<<<<<< HEAD
-=======
-                # Проверяем, что страница загрузилась корректно
->>>>>>> 2e5d7d31b57a90bcd1afa1b4b497613429e909bc
                 if "error" in self.driver.current_url.lower() or "ошибка" in self.driver.page_source.lower():
                     print("Ошибка загрузки страницы, пробуем снова...")
                     continue
 
                 task_info = self.parse_task_page()
 
-<<<<<<< HEAD
                 prompt = f"""Реши задачу на python. Ввод и вывод осуществляй с консоли.
-=======
-                prompt = f"""Реши задачу на Python. Ввод и вывод осуществляй с консоли.
->>>>>>> 2e5d7d31b57a90bcd1afa1b4b497613429e909bc
 
 ЗАГОЛОВОК: {task_info['title']}
 
@@ -566,11 +460,7 @@ else:
 
 Напиши код на Python, который точно соответствует требованиям задачи."""
 
-<<<<<<< HEAD
                 solution = self.ask_ai(prompt, task_id)
-=======
-                solution = self.ask_ai(prompt)
->>>>>>> 2e5d7d31b57a90bcd1afa1b4b497613429e909bc
 
                 code_match = re.search(r'```python\s*(.*?)\s*```', solution, re.DOTALL)
                 if code_match:
@@ -586,15 +476,12 @@ else:
 
                 if success:
                     is_accepted, result = self.check_solution_status()
-<<<<<<< HEAD
                     
                     # Сохраняем попытку в историю
                     self.add_solution_to_history(task_id, python_code, attempt, 
                                                "Accepted" if is_accepted else "Failed", 
                                                result)
                     
-=======
->>>>>>> 2e5d7d31b57a90bcd1afa1b4b497613429e909bc
                     if is_accepted:
                         print(f"Задача {task_id} решена успешно!")
                         return True
@@ -620,14 +507,9 @@ else:
         return False
 
     def run_all_tasks(self):
-<<<<<<< HEAD
         print("Запуск ACMP решателя...")
         print(f"Загружено решений из истории: {len(self.solutions_history)} задач")
         print(f"Загружено лучших решений: {len(self.best_solutions)} задач")
-=======
-        """Основной цикл работы - решение всех задач с 1 по 1000"""
-        print("Запуск ACMP решателя...")
->>>>>>> 2e5d7d31b57a90bcd1afa1b4b497613429e909bc
 
         try:
             self.driver.get("https://acmp.ru/index.asp?main=tasks")
@@ -646,11 +528,6 @@ else:
 
                 if self.solve_task_with_retry(task_url, i):
                     successful_tasks += 1
-<<<<<<< HEAD
-=======
-
-                # Возвращаемся к списку задач между задачами
->>>>>>> 2e5d7d31b57a90bcd1afa1b4b497613429e909bc
                 if i < len(task_urls):
                     self.driver.get("https://acmp.ru/index.asp?main=tasks")
                     time.sleep(2)
@@ -660,20 +537,13 @@ else:
             print(f"Успешно решено: {successful_tasks}")
             print(f"Процент успеха: {successful_tasks / len(task_urls) * 100:.1f}%" if len(
                 task_urls) > 0 else "Процент успеха: 0%")
-<<<<<<< HEAD
             print(f"История сохранена в: {self.solutions_file}")
             print(f"Лучшие решения сохранены в: {self.best_solutions_file}")
-=======
->>>>>>> 2e5d7d31b57a90bcd1afa1b4b497613429e909bc
 
         except Exception as e:
             print(f"Критическая ошибка: {e}")
 
     def close(self):
-<<<<<<< HEAD
-=======
-        """Закрытие браузера"""
->>>>>>> 2e5d7d31b57a90bcd1afa1b4b497613429e909bc
         self.driver.quit()
 
 
